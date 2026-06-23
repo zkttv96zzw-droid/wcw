@@ -1,289 +1,212 @@
 <!DOCTYPE html>
-<html lang="en">
+
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WC26 Predictor</title>
 
 <style>
 body{
-    margin:0;
-    background:#0f1115;
-    color:#fff;
-    font-family:Arial,sans-serif;
+margin:0;
+background:#0d1117;
+color:white;
+font-family:Arial,sans-serif;
 }
 header{
-    padding:20px;
-    background:#151922;
-    position:sticky;
-    top:0;
+padding:20px;
+background:#161b22;
+position:sticky;
+top:0;
 }
 .balance{
-    font-size:24px;
-    font-weight:bold;
-    color:#00d26a;
+font-size:28px;
+font-weight:bold;
+color:#00d26a;
 }
 .container{
-    max-width:900px;
-    margin:auto;
-    padding:20px;
+max-width:900px;
+margin:auto;
+padding:20px;
 }
 .card{
-    background:#1b2130;
-    padding:20px;
-    margin-bottom:20px;
-    border-radius:12px;
+background:#1c2330;
+padding:20px;
+border-radius:12px;
+margin-bottom:20px;
 }
 .match{
-    font-size:22px;
-    margin-bottom:15px;
+font-size:22px;
+margin-bottom:15px;
 }
-.odds{
-    display:grid;
-    grid-template-columns:1fr 1fr 1fr;
-    gap:10px;
-    margin-bottom:15px;
+.options{
+display:grid;
+grid-template-columns:1fr 1fr 1fr;
+gap:10px;
 }
-.pick{
-    background:#293246;
-    border:none;
-    color:white;
-    padding:12px;
-    border-radius:8px;
-    cursor:pointer;
+button{
+background:#293246;
+color:white;
+border:none;
+padding:12px;
+border-radius:8px;
+cursor:pointer;
 }
-.pick:hover{
-    background:#37435e;
+button:hover{
+background:#37435e;
 }
 input{
-    width:100%;
-    padding:10px;
-    border-radius:8px;
-    border:none;
-    margin-top:10px;
+width:100%;
+margin-top:12px;
+padding:10px;
+border-radius:8px;
+border:none;
 }
 .result{
-    margin-top:10px;
-    color:#00d26a;
-}
-.small{
-    color:#aaa;
-    font-size:12px;
+margin-top:10px;
+font-weight:bold;
 }
 </style>
+
 </head>
 <body>
 
 <header>
-  <div class="balance">
-    ⚽ WC26 Points:
-    <span id="points">1000</span>
-  </div>
+<div class="balance">
+⚽ Points: <span id="points">1000</span>
+</div>
 </header>
 
-<div class="container">
-  <div id="matches">
-    Loading matches...
-  </div>
-</div>
+<div class="container" id="matches"></div>
 
 <script>
 
-const FALLBACK_MATCHES = [
-  {home:"Portugal", away:"Uzbekistan"},
-  {home:"England", away:"Ghana"},
-  {home:"Panama", away:"Croatia"},
-  {home:"Colombia", away:"DR Congo"}
+const matches = [
+{
+home:"Portugal",
+away:"Uzbekistan",
+homeWin:62,
+draw:20,
+awayWin:18
+},
+{
+home:"England",
+away:"Ghana",
+homeWin:58,
+draw:24,
+awayWin:18
+},
+{
+home:"Panama",
+away:"Croatia",
+homeWin:22,
+draw:25,
+awayWin:53
+},
+{
+home:"Colombia",
+away:"DR Congo",
+homeWin:65,
+draw:20,
+awayWin:15
+}
 ];
 
-const ratings = {
-  England:1950,
-  Portugal:1920,
-  Croatia:1820,
-  Colombia:1850,
-  Ghana:1700,
-  Panama:1600,
-  Uzbekistan:1650,
-  "DR Congo":1580
-};
+let points = Number(localStorage.getItem("wc26_points") || 1000);
 
-let points = Number(localStorage.getItem("points") || 1000);
+function updatePoints(){
 document.getElementById("points").textContent = points;
-
-function savePoints(){
-  localStorage.setItem("points", points);
-  document.getElementById("points").textContent = points;
+localStorage.setItem("wc26_points", points);
 }
 
-function calculate(home, away){
+function predict(prob,index,name){
 
-  const h = ratings[home] || 1700;
-  const a = ratings[away] || 1700;
+const stake =
+Number(document.getElementById("stake-"+index).value);
 
-  const p = 1 / (1 + Math.pow(10,(a-h)/400));
-
-  let homeWin = Math.round(p * 75);
-  let draw = 20;
-  let awayWin = 100 - homeWin - draw;
-
-  if(awayWin < 5){
-    awayWin = 5;
-    draw = 100 - homeWin - awayWin;
-  }
-
-  return {
-    homeWin,
-    draw,
-    awayWin
-  };
+if(stake <= 0){
+alert("Enter a valid stake");
+return;
 }
 
-function render(matches){
+if(stake > points){
+alert("Not enough points");
+return;
+}
 
-  const el = document.getElementById("matches");
+const multiplier = 100 / prob;
 
-  if(!matches.length){
-    matches = FALLBACK_MATCHES;
-  }
+if(Math.random() < prob/100){
 
-  el.innerHTML = "";
+const gain = Math.round(stake * multiplier) - stake;
 
-  matches.forEach((m,index)=>{
+points += gain;
 
-    const probs = calculate(m.home,m.away);
+document.getElementById("result-"+index)
+.innerHTML = "✅ " + name + " won +" + gain + " pts";
 
-    const card = document.createElement("div");
-    card.className = "card";
+}else{
 
-    card.innerHTML = `
-      <div class="match">
-        ${m.home} vs ${m.away}
-      </div>
+points -= stake;
 
-      <div class="odds">
-        <button class="pick"
-          onclick="predict('${m.home}',${probs.homeWin},${index})">
-          ${m.home}<br>${probs.homeWin}%
-        </button>
-
-        <button class="pick"
-          onclick="predict('Draw',${probs.draw},${index})">
-          Draw<br>${probs.draw}%
-        </button>
-
-        <button class="pick"
-          onclick="predict('${m.away}',${probs.awayWin},${index})">
-          ${m.away}<br>${probs.awayWin}%
-        </button>
-      </div>
-
-      <input
-        id="stake-${index}"
-        type="number"
-        value="100"
-        min="1">
-
-      <div id="result-${index}" class="result"></div>
-
-      <div class="small">
-        Virtual points only
-      </div>
-    `;
-
-    el.appendChild(card);
-
-  });
+document.getElementById("result-"+index)
+.innerHTML = "❌ Lost " + stake + " pts";
 
 }
 
-function predict(selection, probability, index){
-
-  const stake =
-    Number(document.getElementById(`stake-${index}`).value);
-
-  if(stake <= 0){
-    alert("Invalid stake");
-    return;
-  }
-
-  if(stake > points){
-    alert("Not enough points");
-    return;
-  }
-
-  const multiplier =
-    (100 / probability).toFixed(2);
-
-  const random = Math.random();
-
-  let chance = probability / 100;
-
-  if(random < chance){
-
-    const win =
-      Math.round(stake * multiplier);
-
-    points += (win - stake);
-
-    document.getElementById(`result-${index}`).innerHTML =
-      `✅ ${selection} won +${win-stake} points`;
-
-  } else {
-
-    points -= stake;
-
-    document.getElementById(`result-${index}`).innerHTML =
-      `❌ Lost ${stake} points`;
-
-  }
-
-  savePoints();
+updatePoints();
 
 }
 
-async function loadMatches(){
+function render(){
 
-  try{
+const wrap = document.getElementById("matches");
 
-    const url =
-      "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026--usa-canada-mexico/cup.json";
+matches.forEach((m,i)=>{
 
-    const res = await fetch(url);
+wrap.innerHTML += `
+<div class="card">
 
-    const data = await res.json();
+<div class="match">
+${m.home} vs ${m.away}
+</div>
 
-    const matches = [];
+<div class="options">
 
-    if(data.matches){
+<button onclick="predict(${m.homeWin},${i},'${m.home}')">
+${m.home}<br>${m.homeWin}%
+</button>
 
-      data.matches.forEach(m=>{
+<button onclick="predict(${m.draw},${i},'Draw')">
+Draw<br>${m.draw}%
+</button>
 
-        if(matches.length < 8){
+<button onclick="predict(${m.awayWin},${i},'${m.away}')">
+${m.away}<br>${m.awayWin}%
+</button>
 
-          matches.push({
-            home:m.team1,
-            away:m.team2
-          });
+</div>
 
-        }
+<input
+id="stake-${i}"
+type="number"
+value="100"
+min="1">
 
-      });
+<div
+class="result"
+id="result-${i}">
+</div>
 
-    }
+</div>
+`;
 
-    render(matches);
-
-  }catch(err){
-
-    console.log(err);
-
-    render(FALLBACK_MATCHES);
-
-  }
+});
 
 }
 
-loadMatches();
+updatePoints();
+render();
 
 </script>
 
