@@ -1,107 +1,290 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Soccer Predictor</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WC26 Predictor</title>
 
 <style>
 body{
+    margin:0;
+    background:#0f1115;
+    color:#fff;
     font-family:Arial,sans-serif;
-    background:#111;
-    color:white;
-    max-width:700px;
+}
+header{
+    padding:20px;
+    background:#151922;
+    position:sticky;
+    top:0;
+}
+.balance{
+    font-size:24px;
+    font-weight:bold;
+    color:#00d26a;
+}
+.container{
+    max-width:900px;
     margin:auto;
     padding:20px;
 }
 .card{
-    background:#1e1e1e;
-    padding:15px;
-    border-radius:10px;
-    margin:15px 0;
+    background:#1b2130;
+    padding:20px;
+    margin-bottom:20px;
+    border-radius:12px;
 }
-button{
-    background:#00c853;
+.match{
+    font-size:22px;
+    margin-bottom:15px;
+}
+.odds{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:10px;
+    margin-bottom:15px;
+}
+.pick{
+    background:#293246;
     border:none;
     color:white;
-    padding:10px 15px;
-    border-radius:6px;
+    padding:12px;
+    border-radius:8px;
     cursor:pointer;
 }
-input{
-    width:80px;
-    padding:5px;
+.pick:hover{
+    background:#37435e;
 }
-.balance{
-    font-size:24px;
-    margin-bottom:20px;
+input{
+    width:100%;
+    padding:10px;
+    border-radius:8px;
+    border:none;
+    margin-top:10px;
+}
+.result{
+    margin-top:10px;
+    color:#00d26a;
+}
+.small{
+    color:#aaa;
+    font-size:12px;
 }
 </style>
 </head>
 <body>
 
-<h1>⚽ Soccer Predictor</h1>
+<header>
+  <div class="balance">
+    ⚽ WC26 Points:
+    <span id="points">1000</span>
+  </div>
+</header>
 
-<div class="balance">
-Points: <span id="points"></span>
+<div class="container">
+  <div id="matches">
+    Loading matches...
+  </div>
 </div>
-
-<div class="card">
-<h3>Manchester City vs Arsenal</h3>
-
-<select id="pick">
-    <option value="city">Manchester City</option>
-    <option value="draw">Draw</option>
-    <option value="arsenal">Arsenal</option>
-</select>
-
-<input type="number" id="stake" value="100" min="1">
-
-<button onclick="predict()">Predict</button>
-</div>
-
-<p id="result"></p>
 
 <script>
-let points = localStorage.getItem("points");
 
-if(points === null){
-    points = 1000;
-    localStorage.setItem("points", points);
+const FALLBACK_MATCHES = [
+  {home:"Portugal", away:"Uzbekistan"},
+  {home:"England", away:"Ghana"},
+  {home:"Panama", away:"Croatia"},
+  {home:"Colombia", away:"DR Congo"}
+];
+
+const ratings = {
+  England:1950,
+  Portugal:1920,
+  Croatia:1820,
+  Colombia:1850,
+  Ghana:1700,
+  Panama:1600,
+  Uzbekistan:1650,
+  "DR Congo":1580
+};
+
+let points = Number(localStorage.getItem("points") || 1000);
+document.getElementById("points").textContent = points;
+
+function savePoints(){
+  localStorage.setItem("points", points);
+  document.getElementById("points").textContent = points;
 }
 
-update();
+function calculate(home, away){
 
-function update(){
-    document.getElementById("points").textContent = points;
+  const h = ratings[home] || 1700;
+  const a = ratings[away] || 1700;
+
+  const p = 1 / (1 + Math.pow(10,(a-h)/400));
+
+  let homeWin = Math.round(p * 75);
+  let draw = 20;
+  let awayWin = 100 - homeWin - draw;
+
+  if(awayWin < 5){
+    awayWin = 5;
+    draw = 100 - homeWin - awayWin;
+  }
+
+  return {
+    homeWin,
+    draw,
+    awayWin
+  };
 }
 
-function predict(){
+function render(matches){
 
-    let stake = parseInt(document.getElementById("stake").value);
+  const el = document.getElementById("matches");
 
-    if(stake > points || stake <= 0){
-        alert("Invalid stake");
-        return;
+  if(!matches.length){
+    matches = FALLBACK_MATCHES;
+  }
+
+  el.innerHTML = "";
+
+  matches.forEach((m,index)=>{
+
+    const probs = calculate(m.home,m.away);
+
+    const card = document.createElement("div");
+    card.className = "card";
+
+    card.innerHTML = `
+      <div class="match">
+        ${m.home} vs ${m.away}
+      </div>
+
+      <div class="odds">
+        <button class="pick"
+          onclick="predict('${m.home}',${probs.homeWin},${index})">
+          ${m.home}<br>${probs.homeWin}%
+        </button>
+
+        <button class="pick"
+          onclick="predict('Draw',${probs.draw},${index})">
+          Draw<br>${probs.draw}%
+        </button>
+
+        <button class="pick"
+          onclick="predict('${m.away}',${probs.awayWin},${index})">
+          ${m.away}<br>${probs.awayWin}%
+        </button>
+      </div>
+
+      <input
+        id="stake-${index}"
+        type="number"
+        value="100"
+        min="1">
+
+      <div id="result-${index}" class="result"></div>
+
+      <div class="small">
+        Virtual points only
+      </div>
+    `;
+
+    el.appendChild(card);
+
+  });
+
+}
+
+function predict(selection, probability, index){
+
+  const stake =
+    Number(document.getElementById(`stake-${index}`).value);
+
+  if(stake <= 0){
+    alert("Invalid stake");
+    return;
+  }
+
+  if(stake > points){
+    alert("Not enough points");
+    return;
+  }
+
+  const multiplier =
+    (100 / probability).toFixed(2);
+
+  const random = Math.random();
+
+  let chance = probability / 100;
+
+  if(random < chance){
+
+    const win =
+      Math.round(stake * multiplier);
+
+    points += (win - stake);
+
+    document.getElementById(`result-${index}`).innerHTML =
+      `✅ ${selection} won +${win-stake} points`;
+
+  } else {
+
+    points -= stake;
+
+    document.getElementById(`result-${index}`).innerHTML =
+      `❌ Lost ${stake} points`;
+
+  }
+
+  savePoints();
+
+}
+
+async function loadMatches(){
+
+  try{
+
+    const url =
+      "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026--usa-canada-mexico/cup.json";
+
+    const res = await fetch(url);
+
+    const data = await res.json();
+
+    const matches = [];
+
+    if(data.matches){
+
+      data.matches.forEach(m=>{
+
+        if(matches.length < 8){
+
+          matches.push({
+            home:m.team1,
+            away:m.team2
+          });
+
+        }
+
+      });
+
     }
 
-    const outcomes = ["city","draw","arsenal"];
-    const winner = outcomes[Math.floor(Math.random()*3)];
-    const pick = document.getElementById("pick").value;
+    render(matches);
 
-    if(pick === winner){
-        points = Number(points) + stake;
-        document.getElementById("result").innerHTML =
-            "✅ Correct! +" + stake + " points";
-    } else {
-        points = Number(points) - stake;
-        document.getElementById("result").innerHTML =
-            "❌ Wrong! -" + stake + " points";
-    }
+  }catch(err){
 
-    localStorage.setItem("points", points);
-    update();
+    console.log(err);
+
+    render(FALLBACK_MATCHES);
+
+  }
+
 }
+
+loadMatches();
+
 </script>
 
 </body>
