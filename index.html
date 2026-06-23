@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soccer Predictor</title>
+
+<style>
+body{
+    font-family:Arial,sans-serif;
+    background:#111;
+    color:white;
+    max-width:700px;
+    margin:auto;
+    padding:20px;
+}
+.card{
+    background:#1e1e1e;
+    padding:15px;
+    border-radius:10px;
+    margin:15px 0;
+}
+button{
+    background:#00c853;
+    border:none;
+    color:white;
+    padding:10px 15px;
+    border-radius:6px;
+    cursor:pointer;
+}
+input{
+    width:80px;
+    padding:5px;
+}
+.balance{
+    font-size:24px;
+    margin-bottom:20px;
+}
+</style>
+</head>
+<body>
+
+<h1>⚽ Soccer Predictor</h1>
+
+<div class="balance">
+Points: <span id="points"></span>
+</div>
+
+<div class="card">
+<h3>Manchester City vs Arsenal</h3>
+
+<select id="pick">
+    <option value="city">Manchester City</option>
+    <option value="draw">Draw</option>
+    <option value="arsenal">Arsenal</option>
+</select>
+
+<input type="number" id="stake" value="100" min="1">
+
+<button onclick="predict()">Predict</button>
+</div>
+
+<p id="result"></p>
+
+<script>
+let points = localStorage.getItem("points");
+
+if(points === null){
+    points = 1000;
+    localStorage.setItem("points", points);
+}
+
+update();
+
+function update(){
+    document.getElementById("points").textContent = points;
+}
+
+function predict(){
+
+    let stake = parseInt(document.getElementById("stake").value);
+
+    if(stake > points || stake <= 0){
+        alert("Invalid stake");
+        return;
+    }
+
+    const outcomes = ["city","draw","arsenal"];
+    const winner = outcomes[Math.floor(Math.random()*3)];
+    const pick = document.getElementById("pick").value;
+
+    if(pick === winner){
+        points = Number(points) + stake;
+        document.getElementById("result").innerHTML =
+            "✅ Correct! +" + stake + " points";
+    } else {
+        points = Number(points) - stake;
+        document.getElementById("result").innerHTML =
+            "❌ Wrong! -" + stake + " points";
+    }
+
+    localStorage.setItem("points", points);
+    update();
+}
+</script>
+
+</body>
+</html>
